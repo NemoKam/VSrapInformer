@@ -4,151 +4,203 @@ import traceback
 from dataclasses import dataclass
 
 import aiohttp
-from sqlalchemy import select, create_engine
-from sqlalchemy.dialects.postgresql import insert
+from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
+from fastapp import models
+from fastapp.core import config
+from . import dependencies, schemas, crud
 
-from core import config
-from sqlalchemyapp.models import Base, Collection, Product, Combination
 
+SHOP_BASE_URL = config.SHOP_BASE_URL
 
-def upsert(db: Session, model: Base, rows):
-    table = model.__table__
-
-    stmt = insert(table).values(rows)
-
-    update_cols = [c.name for c in table.c
-                   if c not in list(table.primary_key.columns)]
-
-    on_conflict_stmt = stmt.on_conflict_do_update(
-        index_elements=table.primary_key.columns,
-        set_={k: getattr(stmt.excluded, k) for k in update_cols}
-        )
-
-    db.execute(on_conflict_stmt)
 
 @dataclass
 class Scraper:
     session: aiohttp.ClientSession
-    max_tryings = 3
-    error_sleep = 5
 
-    async def get_items(self, url: str) -> list[dict]:
-        items = []
-        limit = 100
-        offset = 0
-        total = 1
+    async def validate_collection(self, soup: BeautifulSoup) -> list[schemas.CollectionCreate]:
+        collections: list[schemas.CollectionCreate] = []
 
-        while offset < total:
-            for i in range(self.max_tryings):
+        soup_collections: list[BeautifulSoup] = soup.findAll("div", {"class": "grid-list__item"})
+
+        for collection in soup_collections:
+            try:
+                vsrap_id: int = int(collection["id"].split("_")[2])
+                vsrap_url: str = SHOP_BASE_URL + collection.find("a", {"class": "ui-card__link"})["href"]
+                title: str = collection.find("div", {"class": "brands-list__image-wrapper"}).text.replace("	", "").replace("\n", "")
+                
+                collection = schemas.CollectionCreate(vsrap_id=vsrap_id, vsrap_url=vsrap_url, title=title)
+
+                collections.append(collection)
+            except Exception as e:
+                traceback.print_exc()
+
+        return collections
+
+    async def get_collections(self) -> list[schemas.CollectionCreate]:
+        url = f"{SHOP_BASE_URL}/brands/"
+        for i in range(config.SCRAPER_PAGE_LOAD_MAX_TRYINGS):
+            try:
+                async with self.session.get(url) as resp:
+                    res = await resp.text()
+                    soup = BeautifulSoup(res, 'html.parser')
+
+                    collections = await self.validate_collection(soup)
+                    return collections
+                
+            except Exception as e:
+                traceback.print_exc()
+                await asyncio.sleep(config.SCRAPER_SLEEP_ON_ERROR)
+        return []
+    
+    async def validate_products_combinations(self, soup: BeautifulSoup) -> schemas.CollectionProductCombination:
+        products: list[schemas.ProductCreate] = []
+        combinations: list[schemas.CombinationCreate] = []
+
+        soup_products: list[BeautifulSoup] = soup.findAll("div", {"class": "catalog-block__inner"})
+
+        for product_info in soup_products:
+            vsrap_id = int(product_info.find("div", {"class": "catalog-block__info"})["data-id"])
+            vsrap_url: str = SHOP_BASE_URL + product_info.find("a")["href"]
+            title: str = product_info.find("div", {"class": "catalog-block__info-title"}).find("span").text
+            try:
+                price = int(product_info.find("meta", {"itemprop": "price"})["content"])
+            except TypeError:
+                product_soup = await self.get_product_page_soup(vsrap_url)
+                price = int(product_soup.find("meta", {"itemprop": "price"})["content"])
+
+            pre_order: bool = True if product_info.find("div", {"class": "sticker__item--preorder"}) != None else False
+            limited: bool = True if product_info.find("div", {"class": "sticker__item--limited"}) != None else False
+            image_url: str = ""
+            try:
+                image_download_url = SHOP_BASE_URL + product_info.find("img", {"class": "img-responsive"})["data-src"]
+                image_url = await dependencies.download_file(image_download_url, str(vsrap_id), "product")
+            except (TypeError, KeyError):
+                pass
+            except Exception as e:
+                traceback.print_exc()
+            
+            combinations_info: BeautifulSoup | None = product_info.find("div", {"class": "sku-props"})
+            if combinations_info:
+                data_item_id = int(combinations_info["data-item-id"])
+                vsrap_id = data_item_id
+                for i, combination_info in enumerate(combinations_info.findAll("div", {"class": "sku-props__value"})):
+                    combination_vsrap_id = data_item_id + i + 1
+                    combination_number = i + 1
+                    combination_size: str = combination_info["data-title"]
+                    
+                    combination = schemas.CombinationCreate(vsrap_id=combination_vsrap_id, combination_number=combination_number, size=combination_size, price=price, product_vsrap_id=vsrap_id)
+                    combinations.append(combination)
+
+            product = schemas.ProductCreate(vsrap_id=vsrap_id, vsrap_url=vsrap_url, title=title, pre_order=pre_order, limited=limited, price=price, image_url=image_url)
+            products.append(product)
+    
+        return schemas.CollectionProductCombination(products=products, combinations=combinations)    
+    
+    async def get_products_combinations(self, collection: models.Collection) -> schemas.CollectionProductCombination:
+        collection_products_combinations = schemas.CollectionProductCombination(collection=collection)
+        is_last_page = False
+        pagen_2 = 1
+
+        while not is_last_page and pagen_2 < config.SCRAPER_PAGE_LOAD_MAX_COUNT:
+            for i in range(config.SCRAPER_PAGE_LOAD_MAX_TRYINGS):
                 try:
-                    async with self.session.get(f"{url}&offset={offset}") as resp:
-                        res = await resp.json()
+                    url = f"{collection.vsrap_url}?PAGEN_2={pagen_2}&AJAX_REQUEST=Y&ajax_get=Y&bitrix_include_areas=N&BLOCK=goods-list-inner"
+                    async with self.session.get(url) as resp:
+                        res = await resp.text()
+                        soup = BeautifulSoup(res, 'html.parser')
 
-                        limit = res["limit"]
-                        offset = res["offset"]
-                        total = res["total"]
+                        products_combinations = await self.validate_products_combinations(soup)
 
-                        offset +=  limit
-                        items += res["items"]
+                        collection_products_combinations.products += products_combinations.products
+                        collection_products_combinations.combinations += products_combinations.combinations
+
+                        pages = len(soup.findAll("a", {"class": "module-pagination__item"})) + 1
+                        if pagen_2 >= pages: is_last_page = True
+
                         break
+
                 except Exception as e:
-                    if i == self.max_tryings - 1: return items
-                    await asyncio.sleep(self.error_sleep)
+                    # traceback.print_exc()
+                    await asyncio.sleep(config.SCRAPER_SLEEP_ON_ERROR)
+            pagen_2 += 1
 
-        return items
-
-    async def get_collections(self) -> list[dict]:
-        url = "https://app.ecwid.com/api/v3/10796017/categories?token=public_PrvdXNdRD3i2r9BVN2cVWwzugV6sStVL&parent=48485404"
-        return await self.get_items(url)
+        return collection_products_combinations
     
-    async def get_products(self) -> list[dict]:
-        url = "https://app.ecwid.com/api/v3/10796017/products?token=public_PrvdXNdRD3i2r9BVN2cVWwzugV6sStVL&category=0&withSubcategories=false"
-        return await self.get_items(url)
+    async def get_product_page_soup(self, vsrap_url: str) -> BeautifulSoup:
+        for i in range(config.SCRAPER_PAGE_LOAD_MAX_TRYINGS):
+            try:
+                url = vsrap_url
+                async with self.session.get(url) as resp:
+                    res = await resp.text()
+                    soup = BeautifulSoup(res, 'html.parser')
+                    return soup                    
 
-
-def validate_collection(collections: list[dict]) -> list[dict]:
-    collection_list_of_dict: list[dict] = []
-
-    for collection in collections:
-        vsrap_id = collection["id"]
-        vsrap_url = collection["url"]
-        title = collection["name"]
-        description = collection["description"] if collection["description"] != "" else None
-        image_url = collection["imageUrl"] if "imageUrl" in collection and collection["imageUrl"] != "" else None
-
-        collection_list_of_dict.append(dict(vsrap_id=vsrap_id, vsrap_url=vsrap_url, title=title, description=description, image_url=image_url))
-    
-    return collection_list_of_dict
-
-def validate_products(products: list[dict]) -> list[dict]:
-    products_info: list[dict] = []
-
-    for product in products:
-        product_info = {}
-
-        if not product["enabled"]: continue
-
-        vsrap_id = product["id"]
-        vsrap_url = product["url"]
-        title = product["name"]
-        sub_title = product["subtitle"] if "subtitle" in product and product["subtitle"] != "" else None
-        description = product["description"] if product["description"] != "" else None
-        combinations = [{"vsrap_id": combination["id"],  "combination_number": combination["combinationNumber"], "size": combination["options"][0]["value"] if len(combination["options"]) > 0 else "", "price": combination["defaultDisplayedPrice"], "product_vsrap_id": vsrap_id} for combination in product["combinations"]] if len(product["combinations"]) > 0 else []
-        image_url = product["imageUrl"] if "imageUrl" in product and product["imageUrl"] != "" else None
-        categories = [category["id"] for category in product["categories"] if category["enabled"]]
-        
-        product_info["product"] = dict(vsrap_id=vsrap_id, vsrap_url=vsrap_url, title=title, sub_title=sub_title, description=description, image_url=image_url)
-        product_info["categories"] = categories
-        product_info["combinations"] = combinations
-
-        products_info.append(product_info)
-    
-    return products_info
-
-def update_data(collection_list_of_dict: list[dict], products_info: list[dict], engine) -> None:
-    with Session(engine) as db:
-        upsert(db, Collection, collection_list_of_dict)
-        db.commit()
-
-        # for product_info in products_info:
-        #     nested = db.begin_nested()
-        #     try:
-        #         product_insert_stmt = insert(Product).values(product_info["product"])
-        #         db.execute(product_insert_stmt)
-
-        #         product: Product = db.scalars(select(Product).where(Product.vsrap_id==product_info["product"]["vsrap_id"])).one()
-
-        #         combinations = product_info["combinations"]
-        #         if len(combinations) > 0:
-        #             combination_insert_return_stmt = insert(Combination).values(combinations).returning(Combination)
-        #             db.execute(combination_insert_return_stmt)
-
-        #         for collection_vsrap_id in product_info["categories"]:
-        #             collection: Collection = db.scalars(select(Collection).where(Collection.vsrap_id==collection_vsrap_id)).one_or_none()
-        #             if collection: collection.products.append(product)
-
-        #         db.commit()
-        #     except:
-        #         traceback.print_exc()
-        #         nested.rollback()
+            except Exception as e:
+                traceback.print_exc()
+                await asyncio.sleep(config.SCRAPER_SLEEP_ON_ERROR)
 
 async def update_base(engine):
-    async with aiohttp.ClientSession() as session:
-        scraper = Scraper(session)
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(config.SCRAPER_PAGE_LOAD_TIMEOUT)) as session:
+        with Session(engine) as db:
+            scraper = Scraper(session)
 
-        collections = await scraper.get_collections()
-        products = await scraper.get_products()
+            print("Getting collections")
+            collections: list[schemas.CollectionCreate] = await scraper.get_collections()
+            print(f"Got collections {len(collections)} - obj")
 
-    collection_list_of_dict: list[dict] = validate_collection(collections)
-    products_info: list[dict] = validate_products(products)
+            collections_json = [collection.model_dump(mode='json') for collection in collections]
+            
+            collections_ids: list[list] = crud.upsert_collections(db, collections_json, need_return=True)
+            db.commit()
+            # collections_ids: [(id_2,), (id_1,)...] So we need to convert it to list[int]
+            collections_ids: list[int] = [collection_info[0] for collection_info in collections_ids]
+            collections: list[models.Collection] = crud.get_collections_by_id(db, collections_ids)
+            print("Collections updated")
 
-    update_data(collection_list_of_dict, products_info, engine)
+            print("Getting products info")
+            product_tasks = [scraper.get_products_combinations(collection) for collection in collections]        
+            products_info: list[schemas.CollectionProductCombination] = await asyncio.gather(*product_tasks)
+            products_count: int = sum([len(product_info.products) for product_info in products_info])
+            print(f"Got products info {products_count} - obj")
 
+            for ind, product_info in enumerate(products_info):
+                try:
+                    collection: models.Collection = product_info.collection
+                    schema_products: list[schemas.ProductCreate] = product_info.products
+                    schema_combinations: list[schemas.CombinationCreate] = product_info.combinations
+                    print(f"Collection - {collection.title}")
 
-if __name__ == "__main__":
-    SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{config.POSTGRESQL_USER}:{config.POSTGRESQL_PASSWORD}@{config.POSTGRESQL_HOST}:{config.POSTGRESQL_PORT}/{config.POSTGRESQL_DATABASE}"
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+                    print(f"Products len - {len(schema_products)}")
+                    if len(schema_products) > 0:
+                        try:
+                            products_json: list[dict] = [product.model_dump(mode='json') for product in schema_products]
+                            products_ids: list[list] = crud.upsert_products(db, products_json, need_return=True)
+                            # products_ids: [(id_2,), (id_1,)...] So we need to convert it to list[int]
+                            products_ids: list[int] = [product_info[0] for product_info in products_ids]
+                            db.commit()
+                            print(f"Products updated")
 
-    asyncio.run(update_base())
+                        except Exception as e:
+                            print(f"Unexpected error - {e}")
+
+                        model_products: list[models.Product] = crud.get_products_by_id(db, products_ids)
+                        collection.products += model_products
+
+                    print(f"Combinations len - {len(schema_combinations)}")
+                    if len(schema_combinations) > 0:
+                        try:
+                            combinations: list[schemas.CombinationCreate] = [combination for combination in schema_combinations]
+                            combinations_json: list[dict] = [combination.model_dump(mode='json') for combination in combinations]
+                            crud.upsert_combinations(db, combinations_json)
+                            db.commit()
+                            print("Combinations updated")
+
+                        except Exception as e:
+                            print(f"Unexpected error - {e}")
+
+                except Exception as e:
+                    print(f"Unexpected error - {e}")
+
+            print("All data updated")
