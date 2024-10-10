@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+
+{% block css %}
+<link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
+{% endblock css%}
+
+
+{% block js %}
+<script src="{{ url_for('static', path='js/main.js')}}" defer></script>
+{% endblock js%}
+
+{% block content %}
+
+<div class="products_info">
+    <div class="search_block">
+        <input type="text" name="" id="" class="search_products_input" placeholder="search">
+        <div class="btn-group collection_options" role="group"></div>
+        <!-- Collection Div Checkbox -->
+        <div class="collection_div" style="display: none;">
+            <input type="checkbox" class="btn-check collection_checkbox_input" id="" autocomplete="off">
+            <label class="btn btn-outline-primary collection_label" for=""></label>
+        </div>
+    </div>
+    <dib class="products_list_div">
+    </dib>
+
+    <!-- Product Div -->
+    <div class="product_div" vsrap_id="" style="display: none;">
+        <div class="product_main_info">
+            <div class="product_limited_preorder_info">
+                <div class="product_is_preorder">PREORDER</div>
+                <div class="product_is_limited">LIMITED</div>
+            </div>
+
+            <img src="" alt="" class="product_image">
+        </div>
+        <div class="product_extended_info">
+            <div class="product_title"></div>
+            <div class="product_price"><span class="product_price_num"></span> ₽</div>
+            <div class="product_combinations">
+                <div class="product_combination_div" vsrap_id="" combination_number="" style="display: none;"></div>
+            </div>
+            <div class="product_collections">
+                <div class="product_collection_div" vsrap_id="" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <!-- My Project -->
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    {% block css %}
+    {% endblock css %}
+    <title>{{ title }}</title>
+</head>
+<body>
+    <!-- Bootstrap -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+    <!-- My Project -->
+    <script src="{{ url_for('static', path='js/app.js')}}" defer></script>
+    {% block js %}
+    {% endblock js %}
+
+    <header>
+        <button class="header_links header_profile btn btn-primary" onclick="user_profile()">PROFILE</a>
+        <button class="header_links header_logout btn btn-primary" onclick="user_logout()">Logout</a>
+        <button class="header_links header_register btn btn-primary" onclick="user_register_form()">Register</a>
+        <button class="header_links header_login btn btn-primary"  onclick="user_login_form()">Login</a>
+    </header>
+
+    <!-- Forms -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="loginModalLabel">Login</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body login_form">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control email_input" placeholder="email" aria-label="Email">
+                </div>
+                <div class="input-group mb-3">
+                    <input type="password" class="form-control password_input" placeholder="password" aria-label="Password">
+                </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" onclick="user_login()">Login</button>
+            </div>
+          </div>
+        </div>
+    </div>
+    <div class="modal fade" id="registerModal" tabindex="-1" aria-labelledby="registerModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="registerModalLabel">Register</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body register_form">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control email_input" placeholder="email" aria-label="Email">
+                </div>
+                <div class="input-group mb-3">
+                    <input type="password" class="form-control password_input" placeholder="password" aria-label="Password">
+                </div>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control code_email_input" placeholder="code" aria-label="Code" readonly>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary register_modal_button" onclick="user_register()">Register</button>
+                <button type="button" class="btn btn-primary verify_modal_button" onclick="user_verify()" style="display: none;">Verify</button>
+            </div>
+          </div>
+        </div>
+    </div>
+
+    {% block content %}
+    
+    {% endblock content %}
+
+    <footer>
+        developed by NemoKam
+    </footer>
+</body>
+</html>
