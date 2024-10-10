@@ -1,0 +1,47 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: column;
+    position: relative;
+}
+
+/* HEADER section */
+header {
+    margin-top: 5px;
+    width: 80%;
+    display: flex;
+    justify-content: flex-end;
+    align-content: center;
+}
+
+.header_links {
+    font: bold;
+    margin-right: 10px;
+}
+
+
+/* FOOTER section */
+footer {
+    height: 30px;
+    width: 100%;
+    background: black;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    padding-bottom: 10px;
+    line-height: 30px;
+}
