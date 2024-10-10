@@ -1,0 +1,65 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Database
+
+POSTGRESQL_USER = os.environ.get("POSTGRESQL_USER")
+POSTGRESQL_PASSWORD = os.environ.get("POSTGRESQL_PASSWORD")
+POSTGRESQL_HOST = os.environ.get("POSTGRESQL_HOST")
+POSTGRESQL_PORT = os.environ.get("POSTGRESQL_PORT")
+POSTGRESQL_DATABASE = os.environ.get("POSTGRESQL_DATABASE")
+
+# Sender
+
+EMAIL_LOGIN = os.environ.get("EMAIL_LOGIN")
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+EMAIL_SMTP_HOST = os.environ.get("EMAIL_SMTP_HOST")
+EMAIL_SMTP_PORT = os.environ.get("EMAIL_SMTP_PORT")
+
+# Tasks broker
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
+CELERY_BACKEND_URL = os.environ.get("CELERY_BACKEND_URL")
+
+# User identification
+
+JWT_SECRET = os.environ.get("JWT_SECRET")
+JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM")
+ACCESS_TOKEN_EXPIRES_MINUTES = 15
+REFRESH_TOKEN_EXPIRES_MINUTES = 15 * 24 * 60 # 15 days
+REFRESH_COOKIE_NAME = "refresh"
+SUB = "sub"
+EXP = "exp"
+IAT = "iat"
+JTI = "jti"
+JWT_EMAIL_PHONE_EXPIRES_MINUTES = 15
+
+VERIFICATION_CODE_LENGTH = 6
+VERIFICATION_CODE_ONLY_DIGITS = True
+VERIFICATION_CODE_EXPIRES_MINUTES = 15
+
+UNVERIFIED_USER_EXPIRES_MINUTES = 15
+
+
+# Scraper
+
+SHOP_BASE_URL = "https://vsrap.shop"
+
+SCRAPER_PAGE_LOAD_TIMEOUT = 5 * 60 # 5 minutes
+SCRAPER_PAGE_LOAD_MAX_TRYINGS = 3
+SCRAPER_PAGE_LOAD_MAX_COUNT = 100
+SCRAPER_SLEEP_ON_ERROR = 5 # 5 seconds
+
+# Media
+
+MEDIA_PATH = "media"
+
+# Web
+
+MAX_OBJECTS_PER_PAGE = 10
+
+BASE_API_URL = "http://127.0.0.1:8000"
+PROJECT_TITLE = "VSrapInformer"
