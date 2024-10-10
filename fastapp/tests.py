@@ -1,18 +1,25 @@
 import asyncio
 import json
 from email.message import EmailMessage
-from venv import create
-from webbrowser import get
+import token
 
 import aiosmtplib
 import requests
 
+from core import config
+
+BASE_URL = config.BASE_API_URL
+
+email = "kamkamuch.8@gmail.com"
+password = "123123123"
+headers = {}
+
 def create_user():
-    url = "http://127.0.0.1:8000/api/auth/v1/users"
+    url = BASE_URL + "/api/auth/v1/user"
 
     data = {
-        "password": "123123123",
-        "email": "kamkamuch.8@gmail.com",
+        "password": password,
+        "email": email,
         "phone_number": "+793939393"
     }
 
@@ -22,17 +29,43 @@ def create_user():
 
     return res.json()
 
-def login():
+def verify():
+    url = BASE_URL + "/api/auth/v1/verify"
+
+    data = {
+        "email": email,
+        "code": "410037"
+    }
+
+    res = requests.post(url, data=json.dumps(data))
+
+    return res.json()
+
+def login(sess: requests.Session):
     url = "http://127.0.0.1:8000/api/auth/v1/login"
 
     data = {
-        "email": "kamkamuch.8@gmail.com",
-        "password": "123123123",
+        "email": email,
+        "password": password,
     }
 
 
-    res = requests.post(url, data=json.dumps(data), timeout=10)
+    res = sess.post(url, data=json.dumps(data), timeout=10)
 
+
+    return res.json()
+
+def refresh_token(sess: requests.Session, token: str):
+    url = "http://127.0.0.1:8000/api/auth/v1/refresh_token"
+
+    res = sess.post(url, timeout=10)
+
+    return res.json()
+
+def get_me(sess: requests.Session):
+    url = BASE_URL + "/api/auth/v1/user"
+
+    res = sess.get(url, headers=headers, timeout=10)
 
     return res.json()
 
@@ -50,8 +83,6 @@ def get_user_products():
             return res.json()
         elif res.status_code == 401:
             jwt = login()
-
-
 
 def get_combinations():
     jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo2NSwiZXhwIjoxNzI2MDcwMzAzfQ.sOZjcyNVPJ_K1aGV_I6cXJW2G8plL-aI1bMNIbI0nvU"
@@ -100,7 +131,6 @@ def select_combinations():
     return res.json()
 
     
-
 async def send_mail(
         sender_email: str = "thebulldok@yandex.ru",
         receiver_email: str = "kamkamuch.7@gmail.com",
@@ -139,19 +169,17 @@ async def send_mail(
     except Exception as e:
         print(e)
 
+def main():
+    sess = requests.Session()
 
+    token_info = login(sess)
 
-# res = add_combinations()
+    print(token_info)
 
-# print(res)
+    headers = {
+        "authorization": f"Bearer {token_info['token']}"
+    }
 
-# import requests
+    me = get_me(sess, token_info["token"])
 
-
-# url = "http://92.38.240.248:2053/"
-
-# res = requests.get(url)
-
-# print(res.text)
-
-print(get_user_products())
+    print(me)
