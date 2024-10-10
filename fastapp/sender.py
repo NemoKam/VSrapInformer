@@ -2,7 +2,8 @@ from email.message import EmailMessage
 
 import aiosmtplib
 
-from core import config
+from fastapp import exceptions
+from fastapp.core import config
 
 async def send_email(receiver_email: str, title: str, message: str) -> dict:
     sender_email: str = config.EMAIL_LOGIN
@@ -28,4 +29,4 @@ async def send_email(receiver_email: str, title: str, message: str) -> dict:
     return {"status": "success"}
 
 async def send_phone_number(phone_number: str, title: str, message: str) -> dict:
-    return {"status": "error", "message": "Unavailable now"}
+    raise exceptions.UnAvailable()
