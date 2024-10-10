@@ -1,22 +1,31 @@
 from datetime import datetime
 from pydantic import BaseModel
 
+from fastapp import models
 
-class BaseCustomModel(BaseModel):
+# Base Models
+
+class BaseConfigModel(BaseModel):
+    class Config:
+        arbitrary_types_allowed=True
+        from_attributes = True
+
+class BaseCustomModel(BaseConfigModel):
     id: int
     created_at: datetime
     updated_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+# User Models 
 
-
-class UserBase(BaseModel):
+class UserBase(BaseConfigModel):
     password: str
     
-class UserCreate(UserBase):
+class UserGet(BaseConfigModel):
     email: str | None = None
     phone_number: str | None = None
+
+class UserCreate(UserGet, UserBase):
+    pass
 
 class User(UserBase, BaseModel):
     email: str | None = None
@@ -26,50 +35,84 @@ class User(UserBase, BaseModel):
 class UserLogin(UserBase):
     email: str
 
+class UserVerify(UserGet):
+    code: str
 
-class CollectionBase(BaseCustomModel):
+# Jwt & Token Models
+
+class JwtTokenGet(BaseConfigModel):
+    token: str
+    expire: datetime
+
+class JwtTokenCreate(JwtTokenGet):
+    payload: dict
+
+class JwtToken(JwtTokenCreate):
+    pass
+
+class TokenPair(BaseConfigModel):
+    access: JwtToken
+    refresh: JwtToken
+
+# Collection Models
+
+class CollectionBase(BaseConfigModel):
     vsrap_id: int
     vsrap_url: str
     title: str
-    description: str | None = None
-    image_url: str | None = None
+
+class CollectionGet(CollectionBase):
+    products: list["ProductBase"] = []
 
 class CollectionCreate(CollectionBase):
     pass
 
-class Collection(CollectionBase):
-    products: list["ProductBase"] = []
-    
+class Collection(CollectionGet, BaseCustomModel):
+    pass
 
-class ProductBase(BaseCustomModel):
+# Product Models
+
+class ProductBase(BaseConfigModel):
     vsrap_id: int
     vsrap_url: str
     title: str
-    sub_title: str | None = None
-    description: str | None = None
+    pre_order: bool = False
+    limited: bool = False
+    price: int
     image_url: str
+
+class ProductGet(ProductBase):
+    collections: list["CollectionBase"] = []
+    combinations: list["CombinationCreate"] = []
 
 class ProductCreate(ProductBase):
     pass
 
-class Product(ProductBase):
-    collections: list["CollectionBase"] = []
-    combinations: list["CombinationBase"] = []
+class Product(ProductGet, BaseCustomModel):
+    pass
 
+# Combination Models
 
 class CombinationId(BaseModel):
     id: int
 
-class CombinationBase(BaseCustomModel):
+class CombinationBase(BaseConfigModel):
     vsrap_id: int
     combination_number: int
     size: str | None = None
     price: int
-    currency: str = "RUB"
     product_vsrap_id: int
 
 class CombinationCreate(CombinationBase):
     pass
 
-class Combination(CombinationBase):
+class Combination(CombinationBase, BaseCustomModel):
     pass
+
+# Collection & Product Model
+
+class CollectionProductCombination(BaseConfigModel):
+    collection: models.Collection | None = None
+    products: list["ProductCreate"] = []
+    combinations: list["CombinationCreate"] = []
+    
