@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import HTTPException, status
 
+
 class AuthFailedException(HTTPException):
     def __init__(self, detail: Any = None) -> None:
         super().__init__(
@@ -10,6 +11,7 @@ class AuthFailedException(HTTPException):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+
 class BadRequestException(HTTPException):
     def __init__(self, detail: Any = None) -> None:
         super().__init__(
@@ -17,12 +19,14 @@ class BadRequestException(HTTPException):
             detail=detail if detail else "Bad request",
         )
 
+
 class NotFoundException(HTTPException):
     def __init__(self, detail: Any = None) -> None:
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=detail if detail else "Not found",
         )
+
 
 class UnAvailable(Exception):
     pass

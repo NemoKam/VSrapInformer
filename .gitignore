@@ -3,3 +3,4 @@ venv/
 alembic.ini
 *.vscode
 __pycache__/
+logs/

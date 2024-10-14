@@ -5,10 +5,10 @@ This is informer of refilled clothes (vsrap.shop)
 
 TODO:
 
-* fastapi server (mainapp)
-* fast web (webapp)
+* fastapi server (mainapp) +
+* fast web (webapp) +
 * nginx
-* Async SQLalchemy
+* Async SQLalchemy +
 * pydantic maybe
 * Logging
 * docker
