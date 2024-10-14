@@ -151,11 +151,15 @@ async def upsert_combinations(db: AsyncSession, combinations_json: list[dict], n
 # User Combination
 
 async def add_combination_to_user(db: AsyncSession, combination_id: uuid.UUID, user_id: uuid.UUID) -> None:
-    await models.user_combination_table.insert(user_id=user_id, combination_id=combination_id)
+    add_combination_to_user_stmt = insert(models.user_combination_table).values(user_id=user_id, combination_id=combination_id)
+
+    await db.execute(add_combination_to_user_stmt)
 
 async def remove_combination_from_user(db: AsyncSession, combination_id: uuid.UUID, user_id: uuid.UUID) -> None:
-    await models.user_combination_table.delete().where(user_id=user_id, combination_id=combination_id)
+    remove_combination_from_user = delete(models.user_combination_table).where(user_id=user_id, combination_id=combination_id)
 
+    await db.execute(remove_combination_from_user)
+    
 # User
 
 async def create_user(db: AsyncSession, user: schemas.UserCreate) -> models.User:
