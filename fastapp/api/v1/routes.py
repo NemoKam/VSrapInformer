@@ -15,8 +15,8 @@ py_logger = get_logger("v1/routes.py")
 router = APIRouter(prefix="/v1", tags=["v1"])
 
 
-@router.get("/collection", response_model=list[schemas.CollectionGet], status_code=status.HTTP_200_OK)
-async def get_collections(user_ip: str = Depends(dependencies.get_ip_from_request), db: AsyncSession = Depends(get_db)) -> list[schemas.CollectionGet]:
+@router.get("/collection", response_model=list[schemas.CollectionGetLazy], status_code=status.HTTP_200_OK)
+async def get_collections(user_ip: str = Depends(dependencies.get_ip_from_request), db: AsyncSession = Depends(get_db)) -> list[schemas.CollectionGetLazy]:
     try:
         py_logger.debug(f"Getting collections. IP: {user_ip}")
         collections: list[models.Collection] = await crud.get_collections(db)
@@ -28,7 +28,7 @@ async def get_collections(user_ip: str = Depends(dependencies.get_ip_from_reques
 
 
 @router.get("/product", response_model=list[schemas.ProductGet], status_code=status.HTTP_200_OK)
-async def get_product(collection_vsrap_ids: list[int] | None = Query(default=None), search_text: str | None = None, page: int = 0, page_size: int = config.MAX_OBJECTS_PER_PAGE, user_ip: str = Depends(dependencies.get_ip_from_request), db: AsyncSession = Depends(get_db)) -> list[schemas.Product]:
+async def get_product(collection_vsrap_ids: list[int] | None = Query(default=None), search_text: str | None = None, page: int = 0, page_size: int = config.MAX_OBJECTS_PER_PAGE, user_ip: str = Depends(dependencies.get_ip_from_request), db: AsyncSession = Depends(get_db)) -> list[schemas.ProductGet]:
     try:
         py_logger.debug(
             f"Getting products ({page}, {page_size}). IP: {user_ip}")
@@ -43,7 +43,7 @@ async def get_product(collection_vsrap_ids: list[int] | None = Query(default=Non
         products: list[models.Product]
 
         if collection_vsrap_ids:
-            products: models.Product = await crud.get_products_by_collection_vsrap_id(db, collection_vsrap_ids, page, page_size, search_text)
+            products = await crud.get_products_by_collection_vsrap_id(db, collection_vsrap_ids, page, page_size, search_text)
         else:
             products = await crud.get_products(db, page=page, page_size=page_size, search_text=search_text)
 

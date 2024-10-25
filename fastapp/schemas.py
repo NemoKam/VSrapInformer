@@ -75,6 +75,9 @@ class CollectionBase(BaseConfigModel):
     title: str
 
 
+class CollectionGetLazy(CollectionBase):
+    pass
+
 class CollectionGet(CollectionBase):
     products: list["ProductBase"] = []
 
@@ -101,7 +104,7 @@ class ProductBase(BaseConfigModel):
 
 class ProductGet(ProductBase):
     collections: list["CollectionBase"] = []
-    combinations: list["CombinationCreate"] = []
+    combinations: list["CombinationBase"] = []
 
 
 class ProductCreate(ProductBase):

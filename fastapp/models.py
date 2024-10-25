@@ -82,9 +82,8 @@ class Product(Base):
     price: Mapped[int]  # currency: RUB
     image_url: Mapped[str]
     collections: Mapped[list["Collection"]] = relationship(
-        secondary=collection_product_table, back_populates="products")
-    combinations: Mapped[list["Combination"]
-                         ] = relationship(back_populates="product")
+        secondary=collection_product_table, back_populates="products", lazy="subquery")
+    combinations: Mapped[list["Combination"]] = relationship(back_populates="product", lazy="subquery")
 
 
 class Combination(Base):

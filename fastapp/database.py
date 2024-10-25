@@ -15,9 +15,12 @@ class DatabaseSessionManager:
         self.session_maker = None
         self.session = None
 
-    def init_db(self):
+    def init_db(self, another_databse_uri: str | None = None):
+        database_uri = SQLALCHEMY_ASYNC_DATABASE_URL
+        if another_databse_uri:
+            database_uri = another_databse_uri
         self.engine = create_async_engine(
-            SQLALCHEMY_ASYNC_DATABASE_URL, pool_size=100, max_overflow=0, pool_pre_ping=False
+            database_uri, pool_size=100, max_overflow=0, pool_pre_ping=False
         )
 
         self.session_maker = async_sessionmaker(

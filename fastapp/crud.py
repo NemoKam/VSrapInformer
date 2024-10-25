@@ -105,7 +105,8 @@ async def get_products_by_collection_vsrap_id(db: AsyncSession, collection_vsrap
 
 async def get_products_by_combinations(db: AsyncSession, combinations: list[models.Combination], page: int = 0, page_size: int | None = None) -> list[models.Product]:
     product_vsrap_ids: list[int] = [
-        combination.product_vsrap_id for combination in combinations]
+        combination.product_vsrap_id for combination in combinations
+    ]
 
     whereclause = (
         models.Product.vsrap_id.in_(product_vsrap_ids)
@@ -130,8 +131,18 @@ async def upsert_products(db: AsyncSession, products_json: list[dict], need_retu
 
 # Combination
 
+async def get_combinations(db: AsyncSession, whereclause: _ColumnExpressionArgument[bool] | None = None) -> list[models.Combination]:
+    select_combination_stmt = select(models.Combination)
+    if whereclause is not None:
+        select_combination_stmt = select_combination_stmt.where(whereclause)
+    combination: list[models.Combination] = (await db.scalars(select_combination_stmt)).all()
+
+    return combination
+
 async def get_combination(db: AsyncSession, whereclause: _ColumnExpressionArgument[bool] | None = None) -> models.Combination | None:
-    select_combination_stmt = select(models.Combination).where(whereclause)
+    select_combination_stmt = select(models.Combination)
+    if whereclause is not None:
+        select_combination_stmt = select_combination_stmt.where(whereclause)
     combination: models.Combination | None = (await db.scalars(select_combination_stmt)).one_or_none()
 
     return combination
@@ -159,7 +170,7 @@ async def remove_combination_from_user(db: AsyncSession, combination_id: uuid.UU
     remove_combination_from_user = delete(models.user_combination_table).where(user_id=user_id, combination_id=combination_id)
 
     await db.execute(remove_combination_from_user)
-    
+
 # User
 
 async def create_user(db: AsyncSession, user: schemas.UserCreate) -> models.User:

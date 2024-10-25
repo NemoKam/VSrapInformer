@@ -18,7 +18,7 @@ from logger import get_logger
 py_logger = get_logger("dependencies")
 
 
-def generate_random_string(length: int = 128, only_digits: bool = False) -> str:
+def generate_random_string(length: int = random.randint(1, 128), only_digits: bool = False) -> str:
     chars = string.digits
 
     if not only_digits:
@@ -34,42 +34,41 @@ def hash_password(password: str) -> str:
     return hash_object.hexdigest()
 
 
-def _get_utc_now():
+def _get_utc_now() -> datetime:
     current_utc_time = datetime.now(timezone.utc)
 
     return current_utc_time
+
+
+def _create_token(payload: dict, expire: datetime) -> schemas.JwtTokenCreate:
+    payload[config.EXP] = expire
+
+    token = schemas.JwtTokenCreate(
+        token=jwt.encode(payload, config.JWT_SECRET,
+                         algorithm=config.JWT_ALGORITHM),
+        payload=payload,
+        expire=expire,
+    )
+
+    return token
 
 
 def _create_access_token(payload: dict, minutes: int | None = None) -> schemas.JwtTokenCreate:
     expire = _get_utc_now() + timedelta(
         minutes=minutes or config.ACCESS_TOKEN_EXPIRES_MINUTES
     )
+    
+    access_token: schemas.JwtTokenCreate = _create_token(payload, expire)
 
-    payload[config.EXP] = expire
-
-    token = schemas.JwtTokenCreate(
-        token=jwt.encode(payload, config.JWT_SECRET,
-                         algorithm=config.JWT_ALGORITHM),
-        payload=payload,
-        expire=expire,
-    )
-
-    return token
+    return access_token
 
 
 def _create_refresh_token(payload: dict) -> schemas.JwtTokenCreate:
     expire = _get_utc_now() + timedelta(minutes=config.REFRESH_TOKEN_EXPIRES_MINUTES)
 
-    payload[config.EXP] = expire
+    refresh_token: schemas.JwtTokenCreate = _create_token(payload, expire)
 
-    token = schemas.JwtTokenCreate(
-        token=jwt.encode(payload, config.JWT_SECRET,
-                         algorithm=config.JWT_ALGORITHM),
-        expire=expire,
-        payload=payload,
-    )
-
-    return token
+    return refresh_token
 
 
 def create_token_pair(user: models.User) -> schemas.TokenPair:
